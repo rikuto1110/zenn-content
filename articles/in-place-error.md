@@ -8,63 +8,15 @@ published: true
 
 # 本記事で伝えたいこと
 - PyTorchで `RuntimeError: a view of a leaf Variable that requires grad is being used in an in-place operation.` という Error が出たら、in-place operationが原因。
-- in-place operation とは、`x.add_()` , `x += 0.5` , `x[mask] = 0.5` のようなテンソルの値を直接書き換える演算。
-- 上記のErrorは以下の方法で解決
+- in-place operation とは、`x.add_()` , `x += 0.5` , `x[mask] = 0.5` のような、
+テンソルの値を直接書き換える演算。
+- 上記のErrorは in-place operation を以下の方法で置き換えることで解決
 
   - `x.add_()` は `x = x.add()`とする。
 
   - `x += 1` は `x = x + 1` とする。
 
-  - mask を使用したい場合は、例えば下の式に示すように$a$ と $b$ を新しい値 $a'$ と $b'$ で置き換えたい場合、変更後の値から元の値を引いた値に対して mask との要素積をとり、変更前の値に足せば良い。（ $?$ と示したのはどうでも良い値）
-
-    $$
-    \begin{align}
-    \begin{bmatrix}
-    a & b\\
-    c & d
-    \end{bmatrix}
-    &\leftarrow\begin{bmatrix}
-    a & b\\
-    c & d
-    \end{bmatrix}
-    +
-    \begin{bmatrix}
-    1 & 1\\
-    0 & 0
-    \end{bmatrix}
-    \otimes
-    \left(
-    \begin{bmatrix}
-    a' & b'\\
-    ? & ?
-    \end{bmatrix}
-    - \begin{bmatrix}
-    a & b\\
-    c & d
-    \end{bmatrix}
-    \right)
-    \\
-    %
-    %
-    &\leftarrow\begin{bmatrix}
-    a & b\\
-    c & d
-    \end{bmatrix}
-    +
-    \begin{bmatrix}
-    a'-a & b'-b\\
-    0 & 0
-    \end{bmatrix}
-    \\
-    %
-    %
-    &\leftarrow\begin{bmatrix}
-    a' & b'\\
-    c & d
-    \end{bmatrix}
-    \end{align}
-    $$
-
+  - mask を使う場合は、`元の値 + mask * (変更後 - 元の値)`とする
 
     ```python
     >>> import torch
@@ -77,7 +29,7 @@ published: true
     tensor([0.2000, 0.4000, 0.0000, 0.0000], grad_fn=<AddBackward0>)
     ```
 
-    上のコードは、テンソルの値が $0.5$ よりも大きい値を、$0$ に置き換えたい場合の例。
+  - slice や index を使用したい場合は、slice や index から mask を作成する。
 
     ```python
     # indice -> mask
@@ -88,9 +40,6 @@ published: true
     mask = torch.zeros_like(x).bool()
     mask[2:] = True
     ```
-
-    slice や index を使用したい場合は、slice や index から mask を作成する。
-
 
 
 # in-place operation とは
